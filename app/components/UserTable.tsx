@@ -15,6 +15,7 @@ interface Props {
   deletingId: number | null;
   onEdit: (user: User) => void;
   onDelete: (id: number) => void;
+  onBulkDelete: (ids: number[]) => Promise<void>;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -24,9 +25,11 @@ export default function UserTable({
   deletingId,
   onEdit,
   onDelete,
+  onBulkDelete,
 }: Props) {
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
 
@@ -51,10 +54,43 @@ export default function UserTable({
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      setBulkLoading(true);
+      await onBulkDelete(selected);
+      setSelected([]);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
 
-      {/* Empty State */}
+      {/* Bulk Action Bar */}
+      {selected.length > 0 && (
+        <div className="flex items-center justify-between px-6 py-3 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+            {selected.length} selected
+          </span>
+
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg
+                       bg-red-600 text-white text-sm
+                       hover:bg-red-700 transition disabled:opacity-50"
+          >
+            {bulkLoading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Trash2 size={16} />
+            )}
+            Delete Selected
+          </button>
+        </div>
+      )}
+
       {users.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <div className="text-4xl">👤</div>
@@ -111,7 +147,6 @@ export default function UserTable({
                     />
                   </td>
 
-                  {/* Avatar + Name */}
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center text-xs font-semibold">
@@ -137,7 +172,7 @@ export default function UserTable({
                                    hover:bg-blue-50 dark:hover:bg-blue-900/30
                                    transition"
                       >
-                        <Pencil size={16} strokeWidth={1.6} />
+                        <Pencil size={16} />
                       </button>
 
                       <button
@@ -152,7 +187,7 @@ export default function UserTable({
                         {deletingId === user.id ? (
                           <Loader2 size={16} className="animate-spin" />
                         ) : (
-                          <Trash2 size={16} strokeWidth={1.6} />
+                          <Trash2 size={16} />
                         )}
                       </button>
                     </div>
@@ -172,9 +207,7 @@ export default function UserTable({
               <button
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700
-                           text-sm hover:bg-gray-100 dark:hover:bg-gray-800
-                           disabled:opacity-40"
+                className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"
               >
                 Prev
               </button>
@@ -182,9 +215,7 @@ export default function UserTable({
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700
-                           text-sm hover:bg-gray-100 dark:hover:bg-gray-800
-                           disabled:opacity-40"
+                className="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40"
               >
                 Next
               </button>

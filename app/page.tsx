@@ -99,6 +99,11 @@ export default function Home() {
     }
   };
 
+  const handleBulkDelete = async (ids: number[]) => {
+    await new Promise((res) => setTimeout(res, 800));
+    setUsers((prev) => prev.filter((u) => !ids.includes(u.id)));
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="h-16 border-b border-gray-200 dark:border-gray-800
@@ -145,6 +150,7 @@ export default function Home() {
               setOpen(true);
             }}
             onDelete={handleDelete}
+            onBulkDelete={handleBulkDelete}
           />
 
           <Modal open={open} onClose={() => setOpen(false)}>
