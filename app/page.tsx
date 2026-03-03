@@ -1,60 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getUsers, createUser } from "./services/userService";
-import { User } from "./types/user";
+import ThemeToggle from "./components/ThemeToggle";
 
 export default function Home() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch (error) {
-      console.error("Failed to fetch users");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-
-    await createUser({ name });
-    setName("");
-    fetchUsers();
-  };
-
   return (
-    <div style={{ padding: "40px" }}>
-      <h1>User Management</h1>
+    <div className="min-h-screen flex flex-col">
 
-      <div style={{ marginBottom: "20px" }}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter name"
-        />
-        <button onClick={handleCreate}>Add</button>
-      </div>
+      {/* Header */}
+      <header className="h-16 border-b border-gray-200 dark:border-gray-800
+                         flex items-center justify-between px-8
+                         bg-white dark:bg-gray-900">
+        <h1 className="text-lg font-semibold tracking-tight">
+          User Management
+        </h1>
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        users.map((user) => (
-          <div key={user.id}>
-            {user.id} - {user.name}
+        <ThemeToggle />
+      </header>
+
+      {/* Main */}
+      <main className="flex-1 p-10">
+        <div className="max-w-4xl mx-auto">
+
+          <div className="bg-white dark:bg-gray-900
+                          border border-gray-200 dark:border-gray-800
+                          rounded-2xl shadow-sm p-6">
+            <h2 className="text-xl font-semibold mb-4">
+              Users
+            </h2>
+
+            <p className="text-gray-500 dark:text-gray-400">
+              Data table coming next step.
+            </p>
+
           </div>
-        ))
-      )}
+
+        </div>
+      </main>
     </div>
   );
 }
