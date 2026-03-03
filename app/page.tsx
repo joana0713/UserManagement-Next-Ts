@@ -6,7 +6,7 @@ import Button from "./components/ui/Button";
 import Input from "./components/ui/Input";
 import Modal from "./components/ui/Modal";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type FormErrors = {
@@ -36,7 +36,6 @@ export default function Home() {
   const handleSave = async () => {
     const newErrors: FormErrors = {};
 
-    // validation
     if (!name.trim()) {
       newErrors.name = "Name is required.";
     }
@@ -61,9 +60,7 @@ export default function Home() {
       if (editUser) {
         setUsers(
           users.map((u) =>
-            u.id === editUser.id
-              ? { ...u, name, email }
-              : u
+            u.id === editUser.id ? { ...u, name, email } : u
           )
         );
         toast.success("User updated");
@@ -152,8 +149,19 @@ export default function Home() {
                 <Input
                   placeholder="Name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={errors.name ? "border-red-500 focus:ring-red-500" : ""}
+                  onChange={(e) => {
+                    setName(e.target.value);
+
+                    // Error handle auto
+                    if (errors.name) {
+                      setErrors((prev) => ({ ...prev, name: undefined }));
+                    }
+                  }}
+                  className={
+                    errors.name
+                      ? "border-red-500 focus:ring-red-500"
+                      : ""
+                  }
                 />
                 {errors.name && (
                   <p className="text-xs text-red-500">
@@ -167,8 +175,19 @@ export default function Home() {
                 <Input
                   placeholder="Email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={errors.email ? "border-red-500 focus:ring-red-500" : ""}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+
+                    // Error handle auto
+                    if (errors.email) {
+                      setErrors((prev) => ({ ...prev, email: undefined }));
+                    }
+                  }}
+                  className={
+                    errors.email
+                      ? "border-red-500 focus:ring-red-500"
+                      : ""
+                  }
                 />
                 {errors.email && (
                   <p className="text-xs text-red-500">
@@ -184,7 +203,14 @@ export default function Home() {
                 </Button>
 
                 <Button disabled={loading} onClick={handleSave}>
-                  {loading ? "Saving..." : "Save"}
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="animate-spin" size={16} />
+                      Saving...
+                    </span>
+                  ) : (
+                    "Save"
+                  )}
                 </Button>
               </div>
             </div>
