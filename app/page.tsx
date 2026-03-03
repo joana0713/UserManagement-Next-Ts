@@ -1,11 +1,21 @@
 "use client";
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getUsers,
+  deleteUser,
+  bulkDeleteUsers,
+  createUser,
+  updateUser,
+} from "./lib/api";
+
 import ThemeToggle from "./components/ThemeToggle";
 import UserTable from "./components/UserTable";
 import Button from "./components/ui/Button";
 import Input from "./components/ui/Input";
 import Modal from "./components/ui/Modal";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,37 +25,82 @@ type FormErrors = {
 };
 
 export default function Home() {
+  const queryClient = useQueryClient();
+
+  // ✅ GET users
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["users"],
+    queryFn: getUsers,
+  });
+
+  // ✅ CREATE
+  const createMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User added");
+    },
+  });
+
+  // ✅ UPDATE
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: any) => updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User updated");
+    },
+  });
+
+  // ✅ DELETE
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("User deleted");
+    },
+  });
+
+  // ✅ BULK DELETE
+  const bulkDeleteMutation = useMutation({
+    mutationFn: bulkDeleteUsers,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Users deleted");
+    },
+  });
+
+  // ----------------------------
+
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [editUser, setEditUser] = useState<any>(null);
+
+  // 🔥 항상 빈 문자열 보장 (uncontrolled 방지)
+  const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+
   const [loading, setLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const [users, setUsers] = useState([
-    { id: 1, name: "Joana Kelly", email: "joana@email.com" },
-  ]);
-
-  const [editUser, setEditUser] = useState<{
-    id: number;
-    name: string;
-    email: string;
-  } | null>(null);
-
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Set Default value
+  useEffect(() => {
+    if (editUser) {
+      setName(editUser.name || "");
+      setEmail(editUser.email || "");
+    } else {
+      setName("");
+      setEmail("");
+    }
+  }, [editUser]);
 
   const handleSave = async () => {
     const newErrors: FormErrors = {};
 
-    if (!name.trim()) {
-      newErrors.name = "Name is required.";
-    }
-
-    if (!email.trim()) {
-      newErrors.email = "Email is required.";
-    } else if (!emailRegex.test(email)) {
+    if (!name.trim()) newErrors.name = "Name is required.";
+    if (!email.trim()) newErrors.email = "Email is required.";
+    else if (!emailRegex.test(email))
       newErrors.email = "Invalid email format.";
-    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -54,27 +109,19 @@ export default function Home() {
 
     try {
       setLoading(true);
-      setErrors({});
-
-      await new Promise((res) => setTimeout(res, 800));
 
       if (editUser) {
-        setUsers(
-          users.map((u) =>
-            u.id === editUser.id ? { ...u, name, email } : u
-          )
-        );
-        toast.success("User updated");
+        await updateMutation.mutateAsync({
+          id: editUser.id,
+          data: { name, email },
+        });
       } else {
-        setUsers([
-          ...users,
-          { id: Date.now(), name, email },
-        ]);
-        toast.success("User added");
+        await createMutation.mutateAsync({ name, email });
       }
 
       setOpen(false);
       setEditUser(null);
+      setErrors({});
       setName("");
       setEmail("");
     } catch {
@@ -84,31 +131,13 @@ export default function Home() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      setDeletingId(id);
-
-      await new Promise((res) => setTimeout(res, 600));
-
-      setUsers(users.filter((u) => u.id !== id));
-      toast.success("User deleted");
-    } catch {
-      toast.error("Delete failed");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleBulkDelete = async (ids: number[]) => {
-    await new Promise((res) => setTimeout(res, 800));
-    setUsers((prev) => prev.filter((u) => !ids.includes(u.id)));
-  };
+  if (isLoading) {
+    return <div className="p-10">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="h-16 border-b border-gray-200 dark:border-gray-800
-                         flex items-center justify-between px-8
-                         bg-white dark:bg-gray-900">
+      <header className="h-16 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-8 bg-white dark:bg-gray-900">
         <h1 className="text-lg font-semibold tracking-tight">
           User Management
         </h1>
@@ -118,6 +147,7 @@ export default function Home() {
       <main className="flex-1 p-10 bg-gray-50 dark:bg-gray-950">
         <div className="max-w-5xl mx-auto space-y-6">
 
+          {/* Top Bar */}
           <div className="flex items-center justify-between gap-4">
             <div className="w-[85%]">
               <Input placeholder="Search user..." />
@@ -128,46 +158,43 @@ export default function Home() {
               className="flex items-center gap-2"
               onClick={() => {
                 setEditUser(null);
-                setName("");
-                setEmail("");
                 setErrors({});
                 setOpen(true);
               }}
             >
-              <Plus size={16} strokeWidth={1.8} />
+              <Plus size={16} />
               Add User
             </Button>
           </div>
 
+          {/* Table */}
           <UserTable
             users={users}
-            deletingId={deletingId}
+            deletingId={deleteMutation.variables ?? null}
             onEdit={(user) => {
               setEditUser(user);
-              setName(user.name);
-              setEmail(user.email);
-              setErrors({});
               setOpen(true);
             }}
-            onDelete={handleDelete}
-            onBulkDelete={handleBulkDelete}
+            onDelete={(id) => deleteMutation.mutate(id)}
+            onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids)}
           />
 
+          {/* Modal */}
           <Modal open={open} onClose={() => setOpen(false)}>
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">
                 {editUser ? "Edit User" : "Add User"}
               </h2>
 
+              {/* Name */}
               <div className="flex flex-col gap-1">
                 <Input
                   placeholder="Name"
-                  value={name}
+                  value={name ?? ""}
                   onChange={(e) => {
                     setName(e.target.value);
-                    if (errors.name) {
+                    if (errors.name)
                       setErrors((prev) => ({ ...prev, name: undefined }));
-                    }
                   }}
                   className={
                     errors.name
@@ -182,15 +209,15 @@ export default function Home() {
                 )}
               </div>
 
+              {/* Email */}
               <div className="flex flex-col gap-1">
                 <Input
                   placeholder="Email"
-                  value={email}
+                  value={email ?? ""}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    if (errors.email) {
+                    if (errors.email)
                       setErrors((prev) => ({ ...prev, email: undefined }));
-                    }
                   }}
                   className={
                     errors.email
@@ -205,6 +232,7 @@ export default function Home() {
                 )}
               </div>
 
+              {/* Buttons */}
               <div className="flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setOpen(false)}>
                   Cancel

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Loader2, ArrowUpDown } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface User {
@@ -20,6 +20,9 @@ interface Props {
 
 const ITEMS_PER_PAGE = 5;
 
+type SortKey = "name" | "email" | null;
+type SortOrder = "asc" | "desc";
+
 export default function UserTable({
   users,
   deletingId,
@@ -30,13 +33,37 @@ export default function UserTable({
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
-  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedUsers = useMemo(() => {
+    if (!sortKey) return users;
+
+    return [...users].sort((a, b) => {
+      const valueA = a[sortKey].toLowerCase();
+      const valueB = b[sortKey].toLowerCase();
+
+      if (valueA < valueB) return sortOrder === "asc" ? -1 : 1;
+      if (valueA > valueB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [users, sortKey, sortOrder]);
+
+  const totalPages = Math.ceil(sortedUsers.length / ITEMS_PER_PAGE);
 
   const paginatedUsers = useMemo(() => {
     const start = (page - 1) * ITEMS_PER_PAGE;
-    return users.slice(start, start + ITEMS_PER_PAGE);
-  }, [users, page]);
+    return sortedUsers.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedUsers, page]);
 
   const toggleSelect = (id: number) => {
     setSelected((prev) =>
@@ -67,7 +94,7 @@ export default function UserTable({
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
 
-      {/* Bulk Action Bar */}
+      {/* Bulk Bar */}
       {selected.length > 0 && (
         <div className="flex items-center justify-between px-6 py-3 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
           <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
@@ -77,9 +104,7 @@ export default function UserTable({
           <button
             onClick={handleBulkDelete}
             disabled={bulkLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg
-                       bg-red-600 text-white text-sm
-                       hover:bg-red-700 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 transition disabled:opacity-50"
           >
             {bulkLoading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -95,9 +120,6 @@ export default function UserTable({
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <div className="text-4xl">👤</div>
           <h3 className="text-lg font-semibold">No users found</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Add a new user to get started.
-          </p>
         </div>
       )}
 
@@ -116,12 +138,29 @@ export default function UserTable({
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="text-left px-6 py-4 font-medium text-gray-600 dark:text-gray-400">
-                  User
+
+                {/* Sortable Name */}
+                <th
+                  onClick={() => handleSort("name")}
+                  className="cursor-pointer text-left px-6 py-4 font-medium text-gray-600 dark:text-gray-400"
+                >
+                  <div className="flex items-center gap-1">
+                    Name
+                    <ArrowUpDown size={14} />
+                  </div>
                 </th>
-                <th className="text-left px-6 py-4 font-medium text-gray-600 dark:text-gray-400">
-                  Email
+
+                {/* Sortable Email */}
+                <th
+                  onClick={() => handleSort("email")}
+                  className="cursor-pointer text-left px-6 py-4 font-medium text-gray-600 dark:text-gray-400"
+                >
+                  <div className="flex items-center gap-1">
+                    Email
+                    <ArrowUpDown size={14} />
+                  </div>
                 </th>
+
                 <th className="px-6 py-4 text-right font-medium text-gray-600 dark:text-gray-400">
                   Actions
                 </th>
@@ -135,9 +174,7 @@ export default function UserTable({
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="border-b border-gray-100 dark:border-gray-800
-                             hover:bg-gray-50/70 dark:hover:bg-gray-800/60
-                             transition-colors"
+                  className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/70 dark:hover:bg-gray-800/60 transition-colors"
                 >
                   <td className="px-6 py-5">
                     <input
@@ -147,15 +184,8 @@ export default function UserTable({
                     />
                   </td>
 
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center text-xs font-semibold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {user.name}
-                      </span>
-                    </div>
+                  <td className="px-6 py-5 font-medium">
+                    {user.name}
                   </td>
 
                   <td className="px-6 py-5 text-gray-500 dark:text-gray-400">
@@ -163,14 +193,10 @@ export default function UserTable({
                   </td>
 
                   <td className="px-6 py-5">
-                    <div className="flex justify-end items-center gap-2">
+                    <div className="flex justify-end gap-2">
                       <button
                         onClick={() => onEdit(user)}
-                        className="h-9 w-9 flex items-center justify-center
-                                   rounded-lg text-gray-500
-                                   hover:text-blue-600
-                                   hover:bg-blue-50 dark:hover:bg-blue-900/30
-                                   transition"
+                        className="h-9 w-9 flex items-center justify-center rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition"
                       >
                         <Pencil size={16} />
                       </button>
@@ -178,11 +204,7 @@ export default function UserTable({
                       <button
                         disabled={deletingId === user.id}
                         onClick={() => onDelete(user.id)}
-                        className="h-9 w-9 flex items-center justify-center
-                                   rounded-lg text-gray-500
-                                   hover:text-red-600
-                                   hover:bg-red-50 dark:hover:bg-red-900/30
-                                   transition disabled:opacity-50"
+                        className="h-9 w-9 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition disabled:opacity-50"
                       >
                         {deletingId === user.id ? (
                           <Loader2 size={16} className="animate-spin" />
